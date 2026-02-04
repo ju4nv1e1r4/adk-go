@@ -122,14 +122,14 @@ func TestCallTool(t *testing.T) {
 			},
 			afterToolCallbacks: []llmagent.AfterToolCallback{
 				func(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
-					t.Errorf("unexpected call to after tool callback")
-					return map[string]any{"result": "unexpected output"}, nil
-				},
-				func(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
 					if err != nil {
 						return map[string]any{"result": "error handled"}, nil
 					}
 					return nil, nil
+				},
+				func(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+					t.Errorf("unexpected call to after tool callback")
+					return map[string]any{"result": "unexpected output"}, nil
 				},
 			},
 			dontRunAfterCanonicalCallback: true,
@@ -142,11 +142,11 @@ func TestCallTool(t *testing.T) {
 			},
 			afterToolCallbacks: []llmagent.AfterToolCallback{
 				func(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
-					t.Errorf("unexpected call to after tool callback")
-					return nil, errors.New("unexpected error")
+					return nil, errors.New("after callback error")
 				},
 				func(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
-					return nil, errors.New("after callback error")
+					t.Errorf("unexpected call to after tool callback")
+					return nil, errors.New("unexpected error")
 				},
 			},
 			dontRunOnErrorCanonicalCallback: true,
@@ -341,7 +341,7 @@ func TestCallTool(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s_plugin", tc.name), func(t *testing.T) {
 			maxLen := max(len(tc.beforeToolCallbacks), len(tc.afterToolCallbacks), len(tc.onToolErrorCallbacks))
-			var plugins []plugin.Plugin
+			var plugins []*plugin.Plugin
 			for i := range maxLen {
 				var currentBefore llmagent.BeforeToolCallback
 				var currentAfter llmagent.AfterToolCallback
@@ -366,7 +366,7 @@ func TestCallTool(t *testing.T) {
 				if err != nil {
 					t.Errorf("failed to initialize plugin: %v", err)
 				}
-				plugins = append(plugins, *p)
+				plugins = append(plugins, p)
 			}
 
 			model := &testutil.MockModel{
@@ -568,12 +568,12 @@ func TestModelCallbacks(t *testing.T) {
 			afterModelCallbacks: []llmagent.AfterModelCallback{
 				func(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
 					return &model.LLMResponse{
-						Content: genai.NewContentFromText("unexpected text", genai.RoleModel),
+						Content: genai.NewContentFromText("hello from after_model_callback", genai.RoleModel),
 					}, nil
 				},
 				func(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
 					return &model.LLMResponse{
-						Content: genai.NewContentFromText("hello from after_model_callback", genai.RoleModel),
+						Content: genai.NewContentFromText("unexpected text", genai.RoleModel),
 					}, nil
 				},
 			},
@@ -590,10 +590,10 @@ func TestModelCallbacks(t *testing.T) {
 			name: "after model callback returns error and are run in symmetrical order",
 			afterModelCallbacks: []llmagent.AfterModelCallback{
 				func(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
-					return nil, fmt.Errorf("error from after_model_callback: %w", http.ErrHijacked)
+					return nil, fmt.Errorf("error from after_model_callback: %w", http.ErrNoCookie)
 				},
 				func(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
-					return nil, fmt.Errorf("error from after_model_callback: %w", http.ErrNoCookie)
+					return nil, fmt.Errorf("error from after_model_callback: %w", http.ErrHijacked)
 				},
 			},
 			llmResponses: []*genai.Content{
@@ -775,7 +775,7 @@ func TestModelCallbacks(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			maxLen := max(len(tc.beforeModelCallbacks), len(tc.afterModelCallbacks), len(tc.onModelErrorCallback))
-			var plugins []plugin.Plugin
+			var plugins []*plugin.Plugin
 			for i := range maxLen {
 				var currentBefore llmagent.BeforeModelCallback
 				var currentAfter llmagent.AfterModelCallback
@@ -800,7 +800,7 @@ func TestModelCallbacks(t *testing.T) {
 				if err != nil {
 					t.Errorf("failed to initialize plugin: %v", err)
 				}
-				plugins = append(plugins, *p)
+				plugins = append(plugins, p)
 			}
 
 			onModelErrorCallbacksCalled := false
